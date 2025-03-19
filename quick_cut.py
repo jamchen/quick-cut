@@ -9,6 +9,14 @@ import tempfile
 import subprocess
 import sys
 import time  # Add time module for timing functionality
+import asyncio  # For EdgeTTS
+
+# Add EdgeTTS import
+try:
+    import edge_tts
+    EDGE_TTS_AVAILABLE = True
+except ImportError:
+    EDGE_TTS_AVAILABLE = False
 
 # Add PIL/Pillow compatibility patch for newer versions
 try:
@@ -58,6 +66,23 @@ SUPPORTED_LANGUAGES = {
     'pt': 'Portuguese',
     'th': 'Thai',
     'vi': 'Vietnamese'
+}
+
+# EdgeTTS voice options for various languages
+EDGE_TTS_VOICES = {
+    'zh-TW': ['zh-TW-HsiaoChenNeural', 'zh-TW-YunJheNeural', 'zh-TW-HsiaoYuNeural'],
+    'zh-CN': ['zh-CN-XiaoxiaoNeural', 'zh-CN-YunxiNeural', 'zh-CN-YunyangNeural', 'zh-CN-XiaohanNeural', 'zh-CN-XiaomoNeural'],
+    'en': ['en-US-AriaNeural', 'en-US-GuyNeural', 'en-GB-SoniaNeural'],
+    'ja': ['ja-JP-NanamiNeural', 'ja-JP-KeitaNeural'],
+    'ko': ['ko-KR-SoonBokNeural', 'ko-KR-InJoonNeural'],
+    'fr': ['fr-FR-DeniseNeural', 'fr-FR-HenriNeural'],
+    'de': ['de-DE-KatjaNeural', 'de-DE-ConradNeural'],
+    'es': ['es-ES-AlvaroNeural', 'es-ES-ElviraNeural'],
+    'it': ['it-IT-ElsaNeural', 'it-IT-DiegoNeural'],
+    'ru': ['ru-RU-SvetlanaNeural', 'ru-RU-DmitryNeural'],
+    'pt': ['pt-BR-FranciscaNeural', 'pt-BR-AntonioNeural'],
+    'th': ['th-TH-PremwadeeNeural', 'th-TH-NiwatNeural'],
+    'vi': ['vi-VN-HoaiMyNeural', 'vi-VN-NamMinhNeural']
 }
 
 # Language-specific font recommendations
@@ -179,15 +204,62 @@ def text_to_speech_pyttsx3(text, output_file, lang='en', speed_factor=1.0):
     
     return output_file
 
-def text_to_speech(text, output_file, offline=False, lang='en', speed_factor=1.0):
-    """Convert text to speech using the selected method"""
-    if offline and PYTTSX3_AVAILABLE:
-        return text_to_speech_pyttsx3(text, output_file, lang, speed_factor)
-    else:
-        if offline and not PYTTSX3_AVAILABLE:
-            print("Warning: Offline TTS requested but pyttsx3 not available. Using Google TTS instead.")
-            print("To enable offline TTS, install pyttsx3: pip install pyttsx3")
+async def text_to_speech_edge_async(text, output_file, lang='en', voice=None, speed_factor=1.0):
+    """Convert text to speech using Microsoft Edge TTS and save as audio file"""
+    try:
+        # Set default voice based on language if not specified
+        if voice is None:
+            if lang in EDGE_TTS_VOICES and len(EDGE_TTS_VOICES[lang]) > 0:
+                voice = EDGE_TTS_VOICES[lang][0]  # Use first available voice for the language
+            else:
+                # Fallback to English if the language is not supported
+                print(f"Language '{lang}' not found in EdgeTTS voices, falling back to English")
+                voice = "en-US-AriaNeural"
+        
+        # Calculate rate string based on speed factor
+        # EdgeTTS accepts rate values with sign: +0%, +50%, -50% etc.
+        if speed_factor > 1.0:
+            rate = f"+{int((speed_factor-1)*100)}%"
+        elif speed_factor < 1.0:
+            rate = f"-{int((1-speed_factor)*100)}%"
+        else:
+            rate = "+0%"
+        
+        print(f"  Using EdgeTTS voice: {voice}, rate: {rate}")
+        
+        # Create TTS communicator with the selected voice and speech rate
+        tts = edge_tts.Communicate(text, voice, rate=rate)
+        
+        # Generate and save audio
+        await tts.save(output_file)
+        
+        return output_file
+    except Exception as e:
+        print(f"Error generating speech with Edge TTS: {e}")
+        print("Falling back to Google TTS...")
         return text_to_speech_gtts(text, output_file, lang, speed_factor)
+
+def text_to_speech_edge(text, output_file, lang='en', voice=None, speed_factor=1.0):
+    """Synchronous wrapper for Edge TTS"""
+    return asyncio.run(text_to_speech_edge_async(text, output_file, lang, voice, speed_factor))
+
+def text_to_speech(text, output_file, method='gtts', offline=False, lang='en', voice=None, speed_factor=1.0):
+    """Convert text to speech using the selected method"""
+    if method == 'edge' and EDGE_TTS_AVAILABLE:
+        return text_to_speech_edge(text, output_file, lang, voice, speed_factor)
+    elif method == 'pyttsx3' and PYTTSX3_AVAILABLE:
+        return text_to_speech_pyttsx3(text, output_file, lang, speed_factor)
+    elif method == 'gtts' or method not in ['edge', 'pyttsx3']:
+        if method not in ['gtts', 'edge', 'pyttsx3']:
+            print(f"Warning: Unknown TTS method '{method}'. Using Google TTS instead.")
+        if offline and PYTTSX3_AVAILABLE:
+            print("Offline mode requested. Using pyttsx3.")
+            return text_to_speech_pyttsx3(text, output_file, lang, speed_factor)
+        else:
+            if offline and not PYTTSX3_AVAILABLE:
+                print("Warning: Offline TTS requested but pyttsx3 not available. Using Google TTS instead.")
+                print("To enable offline TTS, install pyttsx3: pip install pyttsx3")
+            return text_to_speech_gtts(text, output_file, lang, speed_factor)
 
 def format_timestamp_srt(seconds):
     """Convert seconds to SRT timestamp format: HH:MM:SS,mmm"""
@@ -341,7 +413,7 @@ def create_subtitle_file_from_audio(file_pairs, output_path, pause_duration=1.0,
 def create_video(file_pairs, output_path, transition_duration=0.5, music_file=None, music_volume=0.1, 
               offline_tts=False, pause_duration=1.0, lang='en', speed_factor=1.0, 
               resolution=(1280, 720), burn_captions=False, caption_font_size=30,
-              caption_position='bottom', caption_font=None):
+              caption_position='bottom', caption_font=None, tts_method='gtts', tts_voice=None):
     """Create a video from the image/text pairs"""
     # Start timing
     start_time = time.time()
@@ -366,7 +438,8 @@ def create_video(file_pairs, output_path, transition_duration=0.5, music_file=No
         
         # Create audio from caption
         audio_file = os.path.join(temp_dir, f"audio_{i}.mp3")
-        text_to_speech(caption, audio_file, offline=offline_tts, lang=lang, speed_factor=speed_factor)
+        text_to_speech(caption, audio_file, method=tts_method, offline=offline_tts, 
+                       lang=lang, voice=tts_voice, speed_factor=speed_factor)
         
         # Get audio duration
         audio_clip = AudioFileClip(audio_file)
@@ -602,6 +675,16 @@ def list_available_fonts():
         print("This could be due to issues with ImageMagick configuration or installation.")
         print("Make sure ImageMagick is properly installed and in your system PATH.")
 
+def list_edge_voices():
+    """Print available voices for Edge TTS"""
+    print("Available EdgeTTS voices by language:")
+    for lang, voices in EDGE_TTS_VOICES.items():
+        language_name = SUPPORTED_LANGUAGES.get(lang, lang)
+        print(f"\n{lang} ({language_name}):")
+        for voice in voices:
+            print(f"  - {voice}")
+    sys.exit(0)
+
 def main():
     parser = argparse.ArgumentParser(description='Generate a video from text and image files')
     
@@ -610,6 +693,8 @@ def main():
                         help='List all supported languages and exit')
     parser.add_argument('--list-fonts', action='store_true',
                         help='List all available fonts for captions and exit')
+    parser.add_argument('--list-voices', action='store_true',
+                        help='List available voices for Edge TTS and exit')
                         
     # Only parse these arguments first
     args, remaining_argv = parser.parse_known_args()
@@ -623,6 +708,10 @@ def main():
         list_available_fonts()
         return
         
+    if args.list_voices:
+        list_edge_voices()
+        return
+        
     # Add all other arguments for normal operation
     parser.add_argument('input_dir', help='Directory containing text and image files')
     parser.add_argument('--output', '-o', default='output.mp4', help='Output video file path')
@@ -632,7 +721,7 @@ def main():
     parser.add_argument('--music-volume', '-v', type=float, default=0.1, 
                         help='Volume of background music from 0.0 to 1.0 (default: 0.1)')
     parser.add_argument('--offline-tts', '-ol', action='store_true',
-                        help='Use offline text-to-speech (requires pyttsx3)')
+                        help='Use offline TTS (requires pyttsx3)')
     parser.add_argument('--pause', '-p', type=float, default=1.0,
                         help='Duration of pause between narrations in seconds (default: 1.0)')
     parser.add_argument('--language', '-l', default='en',
@@ -655,6 +744,12 @@ def main():
                         help='Generate a subtitle file alongside the video')
     parser.add_argument('--subtitle-format', choices=['srt', 'vtt'], default='srt',
                         help='Format for subtitle file (default: srt)')
+    parser.add_argument('--tts-speed', '-ts', type=float, default=1.0,
+                        help='TTS speech rate (0.5-2.0, default=1.0)')
+    parser.add_argument('--tts-method', '-tm', type=str, default='edge', choices=['edge', 'gtts', 'pyttsx3'],
+                        help='TTS method to use: gtts (Google), edge (Microsoft Edge), pyttsx3 (offline)')
+    parser.add_argument('--tts-voice', '-tv', type=str, default=None,
+                        help='TTS voice to use (available for edge TTS method)')
     
     # Parse all arguments
     args = parser.parse_args(remaining_argv, namespace=args)
@@ -736,7 +831,8 @@ def main():
                               args.music_volume, args.offline_tts, args.pause, 
                               args.language, args.speed, resolution=(args.width, args.height),
                               burn_captions=args.burn_captions, caption_font_size=args.caption_font_size,
-                              caption_position=args.caption_position, caption_font=args.caption_font)
+                              caption_position=args.caption_position, caption_font=args.caption_font,
+                              tts_method=args.tts_method, tts_voice=args.tts_voice)
     print(f"Video successfully created: {output_path}")
 
 if __name__ == "__main__":

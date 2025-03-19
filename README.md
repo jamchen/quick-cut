@@ -5,7 +5,10 @@ A simple Python script to generate videos from text files and images with narrat
 ## Features
 
 - Automatically pairs text files with corresponding images
-- Converts text to speech using Google's TTS service (online) or pyttsx3 (offline)
+- Multiple TTS (Text-to-Speech) options:
+  - Google TTS (online)
+  - Microsoft Edge TTS (online, high-quality, optimized for Chinese)
+  - pyttsx3 (offline)
 - Creates a video slideshow with images and narration
 - Optional caption burning to overlay text directly on the video
 - Generate SRT or VTT subtitle files for accessibility and embedding
@@ -22,7 +25,7 @@ A simple Python script to generate videos from text files and images with narrat
 ## Requirements
 
 - Python 3.6 or higher
-- Internet connection (for Google TTS) or pyttsx3 for offline TTS
+- Internet connection (for Google TTS or Microsoft Edge TTS) or pyttsx3 for offline TTS
 - ImageMagick (required only if using the --burn-captions feature)
 
 ## Installation
@@ -85,6 +88,15 @@ A simple Python script to generate videos from text files and images with narrat
    # Disable transitions
    python quick_cut.py /path/to/your/directory --transition 0
 
+   # Use different TTS methods
+   python quick_cut.py /path/to/your/directory --tts-method gtts  # Google TTS (default)
+   python quick_cut.py /path/to/your/directory --tts-method edge  # Microsoft Edge TTS
+   python quick_cut.py /path/to/your/directory --tts-method pyttsx3  # Offline TTS
+
+   # Specify a voice for Edge TTS (especially useful for Chinese)
+   python quick_cut.py /path/to/your/directory --tts-method edge --tts-voice zh-CN-XiaoxiaoNeural
+   python quick_cut.py /path/to/your/directory --tts-method edge --tts-voice zh-TW-HsiaoChenNeural
+
    # Use offline text-to-speech (requires pyttsx3)
    python quick_cut.py /path/to/your/directory --offline-tts
 
@@ -126,6 +138,9 @@ A simple Python script to generate videos from text files and images with narrat
 
    # List all available fonts for captions
    python quick_cut.py --list-fonts
+
+   # List available voices for Edge TTS
+   python quick_cut.py --list-voices
    ```
 
 ## Example Directory Structure
@@ -163,6 +178,7 @@ input_directory/
 | `--subtitle-format`    |       | Format for subtitle file: srt or vtt (default: srt)                                  |
 | `--list-languages`     |       | List all supported languages and exit                                                |
 | `--list-fonts`         |       | List all available fonts for caption rendering and exit                              |
+| `--list-voices`        |       | List available voices for Edge TTS                                                   |
 
 ## Standard Video Resolutions
 
