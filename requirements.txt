@@ -1,0 +1,4 @@
+gtts==2.3.1
+moviepy==1.0.3
+# Optional for offline text-to-speech:
+# pyttsx3==2.90 
