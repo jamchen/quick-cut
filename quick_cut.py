@@ -500,7 +500,7 @@ def create_video(file_pairs, output_path, transition_duration=0.5, music_file=No
                     else:  # bottom
                         # For bottom position, we need to calculate the distance from the bottom
                         # Using lambda function to dynamically calculate the position based on frame size
-                        caption_clip = caption_clip.set_position(lambda t: ('center', height - caption_clip.h - caption_vertical_margin))
+                        caption_clip = caption_clip.set_position(lambda t: ('center', height - caption_clip.h * 4 - caption_vertical_margin))
                     
                     # Set duration to match the image clip
                     caption_clip = caption_clip.set_duration(image_clip.duration)
