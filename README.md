@@ -89,9 +89,12 @@ A simple Python script to generate videos from text files and images with narrat
    python quick_cut.py /path/to/your/directory --transition 0
 
    # Use different TTS methods
-   python quick_cut.py /path/to/your/directory --tts-method gtts  # Google TTS (default)
-   python quick_cut.py /path/to/your/directory --tts-method edge  # Microsoft Edge TTS
+   python quick_cut.py /path/to/your/directory --tts-method gtts  # Google TTS
+   python quick_cut.py /path/to/your/directory --tts-method edge  # Microsoft Edge TTS (default)
    python quick_cut.py /path/to/your/directory --tts-method pyttsx3  # Offline TTS
+
+   # Adjust speech rate using TTS-specific speed control
+   python quick_cut.py /path/to/your/directory --tts-speed 1.5  # 50% faster speech
 
    # Specify a voice for Edge TTS (especially useful for Chinese)
    python quick_cut.py /path/to/your/directory --tts-method edge --tts-voice zh-CN-XiaoxiaoNeural
@@ -176,9 +179,12 @@ input_directory/
 | `--caption-font`       |       | Font name or file path for captions (e.g., "DejaVu-Sans" or "/path/to/font.ttf")     |
 | `--generate-subtitles` |       | Generate a subtitle file alongside the video                                         |
 | `--subtitle-format`    |       | Format for subtitle file: srt or vtt (default: srt)                                  |
+| `--tts-speed`          | `-ts` | TTS speech rate (0.5-2.0, default=1.0)                                               |
+| `--tts-method`         | `-tm` | TTS method to use: gtts (Google), edge (Microsoft Edge), pyttsx3 (offline)           |
+| `--tts-voice`          | `-tv` | TTS voice to use (available for edge TTS method)                                     |
 | `--list-languages`     |       | List all supported languages and exit                                                |
 | `--list-fonts`         |       | List all available fonts for caption rendering and exit                              |
-| `--list-voices`        |       | List available voices for Edge TTS                                                   |
+| `--list-voices`        |       | List available voices for Edge TTS and exit                                          |
 
 ## Standard Video Resolutions
 
