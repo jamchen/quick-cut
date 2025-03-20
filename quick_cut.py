@@ -500,7 +500,9 @@ def create_video(file_pairs, output_path, transition_duration=0.5, music_file=No
                     else:  # bottom
                         # For bottom position, we need to calculate the distance from the bottom
                         # Using lambda function to dynamically calculate the position based on frame size
-                        caption_clip = caption_clip.set_position(lambda t: ('center', height - caption_clip.h * 4 - caption_vertical_margin))
+                        y = height - caption_clip.h - caption_vertical_margin
+                        caption_clip = caption_clip.set_position(lambda t: ('center', y))
+                        print(f"  Caption height: {caption_clip.h}, y: {y}")
                     
                     # Set duration to match the image clip
                     caption_clip = caption_clip.set_duration(image_clip.duration)
@@ -515,18 +517,20 @@ def create_video(file_pairs, output_path, transition_duration=0.5, music_file=No
                     
                     # Overlay both the image and caption on the background clip
                     # This ensures the caption has enough space and won't be truncated
-                    image_clip = CompositeVideoClip([background_clip, image_clip, caption_clip])
+                    image_clip = CompositeVideoClip([background_clip, image_clip, caption_clip], use_bgclip=True)
                     
-                    # # Save the image clip for debugging
-                    # try:
-                    #     debug_dir = "debug_frames"
-                    #     if not os.path.exists(debug_dir):
-                    #         os.makedirs(debug_dir)
-                    #     debug_path = os.path.join(debug_dir, f"frame_{len(clips):03d}.png")
-                    #     image_clip.save_frame(debug_path, t=0)
-                    #     print(f"  Saved debug frame to: {debug_path}")
-                    # except Exception as e:
-                    #     print(f"  Warning: Could not save debug frame: {e}")
+                    # Save the image clip to make sure the caption is in the right place
+                    try:
+                        if not os.path.exists(temp_dir):
+                            os.makedirs(temp_dir)
+                        temp_frame_path = os.path.join(temp_dir, f"frame_{len(clips):03d}.png")
+                        image_clip.save_frame(temp_frame_path, t=0)
+                        print(f"  Saved frame to: {temp_frame_path}")
+                        image_clip = (ImageClip(temp_frame_path)
+                          .set_duration(image_clip.duration)
+                          .resize(width=width, height=height))
+                    except Exception as e:
+                        print(f"  Warning: Could not save frame: {e}")
                     
                     print(f"  Successfully added caption using font: {font_to_use or 'default'}")
                 except Exception as e:
